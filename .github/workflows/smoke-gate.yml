@@ -1,0 +1,61 @@
+name: aegismesh-smoke-gate
+
+# AegisMesh firmware-validation smoke gate (task.md "Firmware Validation
+# Infrastructure"). This repo holds ONLY disposable workflow YAML + minimal
+# test fixtures - no product source of truth, no decision ledger, no
+# research.md. The private repo drey123/Aegismesh remains the source of
+# truth; run URLs + status are appended to its research.md by the launching
+# agent after each run.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout private AegisMesh (sim only, shallow)
+        uses: actions/checkout@v4
+        with:
+          repository: drey123/Aegismesh
+          ref: main
+          token: ${{ secrets.GH_PAT }}
+          path: Aegismesh
+          # sparse: only the sim/ directory is needed by the gate
+          sparse-checkout: sim
+          sparse-checkout-cone: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps (numpy only, open source)
+        run: pip install numpy
+
+      - name: Copy fixtures and run smoke gate
+        shell: bash
+        run: |
+          cp ci-smoke.sh lr2021_peripheral.py Aegismesh/sim/
+          cd Aegismesh/sim
+          sh ci-smoke.sh
+
+      - name: Renode presence check (skeleton gate)
+        shell: bash
+        run: |
+          # Renode itself is installed for future peripheral-accurate runs;
+          # the LR2021 skeleton is syntax-checked here, timing closure is
+          # carried until the register-accurate model lands (research.md
+          # ITER-4, bottleneck #5).
+          python3 -m py_compile Aegismesh/sim/lr2021_peripheral.py
+          echo "LR2021 skeleton compiles; Renode timing closure pending"
+
+      - name: Upload smoke results
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-results
+          path: Aegismesh/sim/results_iter*.json
+          if-no-files-found: warn
