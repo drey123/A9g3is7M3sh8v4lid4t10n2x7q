@@ -49,6 +49,19 @@ jobs:
       - name: Run LR2021 timing-anchor selftest
         run: dotnet run --project lr2021.csproj --no-build
 
+  iter6-anchors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build ITER-6 arithmetic anchors
+        run: dotnet build iter6.csproj -v q
+      - name: Run ITER-6 anchor selftest (DP audit + spill contention)
+        run: dotnet run --project iter6.csproj --no-build
+
   gate:
     runs-on: ubuntu-latest
     needs: selfcontained

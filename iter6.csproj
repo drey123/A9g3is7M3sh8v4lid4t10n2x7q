@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Disposable CI fixture: ITER-6 arithmetic anchors (DP audit + spill
+       contention capacity boundary). Pure closed-form math, no MC. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>iter6anchors</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="iter6_anchors.cs" />
+  </ItemGroup>
+</Project>
