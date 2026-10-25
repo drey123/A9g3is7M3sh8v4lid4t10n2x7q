@@ -80,14 +80,26 @@ namespace AegisMesh.Validation
             double dCeil = 3000.0 / ceiling(8);
             AssertNear(dCeil, 78.125,
                        "ceiling accrual guard needs > 78 disconnected");
-            Assert(dPlain > 252.0,
-                   "guard cannot fire at the measured ~126 disconnected nodes (plain spray, 3.4x margin)");
-
-            // ---- 5) Ceiling-regime aggregate demand (trace mix) ---------
-            // measured trace: ~42 % of 300 disconnected (ITER-6 scenario)
-            double aggCeil = 300 * 0.42 * ceiling(8);
-            AssertNear(aggCeil / 6000.0, 0.8064,
-                       "ceiling-regime aggregate demand = 80.6 % of 6 kB/s");
+            // NOTE (ITER-7 trace-resolved correction): the uniform-arithmetic
+            // boundary above is a FLOOR, not a firing prediction.  Islands
+            // form in dense venues where the measured in-island contact rate
+            // (~0.945 new edges/node/20 s in the degraded trace set) is
+            // ~9x the population-median ICT-any, so the trace-resolved
+            // plain-mode demand reaches the 3000 B/s threshold in 7.5 % of
+            // degraded-set steps at lam=0.05 (census, results_iter7.json).
+            // Firing fractions are trace-derived statistics and stay in the
+            // Python results, not in this closed-form gate.
+            // ---- 5) Received-copy conservation cap ----------------------
+            // per-node received rate <= lam x (min(L,m)-1) msgs/s (credit
+            // supply), also <= contact rate; at the measured island contact
+            // rate 0.945/20 s and m >= 6 the contact side binds:
+            double cIsland = 0.945 / 20.0;          // measured contacts/s
+            double recvTrace = Math.Min(cIsland, lam * (L - 1.0));
+            AssertNear(recvTrace, 0.04725,
+                       "trace-island received rate = min(0.04725, 0.25) = 0.04725 msg/s");
+            double aPlainTrace = lam * msgB + recvTrace * msgB;
+            AssertNear(aPlainTrace, 12.448,
+                       "trace-resolved plain accrual = 6.4 + 6.048 = 12.448 B/s");
 
             Console.WriteLine("iter7 anchors: ALL PASS");
             return 0;
