@@ -36,6 +36,19 @@ jobs:
           python3 -m py_compile lr2021_peripheral.py
           echo "LR2021 skeleton compiles; register-accurate timing pending"
 
+  csharp-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build LR2021 C# model (against stubs)
+        run: dotnet build lr2021.csproj -v q
+      - name: Run LR2021 timing-anchor selftest
+        run: dotnet run --project lr2021.csproj --no-build
+
   gate:
     runs-on: ubuntu-latest
     needs: selfcontained

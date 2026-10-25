@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Disposable CI fixture: compiles the LR2021 C# skeleton against
+       RenodeStubs.cs and runs the timing-anchor selftest. NOT Renode itself;
+       semantic validation happens inside a Renode checkout (owner env). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>lr2021selftest</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="lr2021_peripheral.cs" />
+    <Compile Include="renode_stubs.cs" />
+    <Compile Include="lr2021_selftest.cs" />
+  </ItemGroup>
+</Project>
