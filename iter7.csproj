@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Disposable CI fixture: ITER-7 arithmetic anchors (island accrual
+       custody model: contact-limited plain spray vs custody ceiling).
+       Pure closed-form math, no MC. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>iter7anchors</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="iter7_anchors.cs" />
+  </ItemGroup>
+</Project>
