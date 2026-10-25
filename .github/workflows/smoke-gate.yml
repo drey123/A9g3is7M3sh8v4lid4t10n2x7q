@@ -80,6 +80,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # 1) the PUBLIC repo itself (ci-smoke.sh + fixtures) - VAL-004 fix:
+      #    run 40228846904 failed because the job checked out only the
+      #    private repo and the fixtures were never in the workspace.
+      - uses: actions/checkout@v4
+      # 2) the PRIVATE repo sim/ (source of truth for the seeded sims)
       - name: Checkout private AegisMesh (sim only)
         uses: actions/checkout@v4
         with:
@@ -88,7 +93,6 @@ jobs:
           token: ${{ secrets.GH_PAT }}
           path: Aegismesh
           sparse-checkout: sim
-          sparse-checkout-cone: true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -96,8 +100,8 @@ jobs:
       - name: Run smoke gate against private sim/
         run: |
           cp ci-smoke.sh lr2021_peripheral.py slo_canary.py Aegismesh/sim/
-          cd Aegismesh/sim
-          sh ci-smoke.sh
+          cd Aegismesh
+          sh ../ci-smoke.sh
       - name: Upload smoke results
         uses: actions/upload-artifact@v4
         with:
