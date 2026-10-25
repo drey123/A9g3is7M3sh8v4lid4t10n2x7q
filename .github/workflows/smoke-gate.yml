@@ -6,53 +6,63 @@ name: aegismesh-smoke-gate
 # research.md. The private repo drey123/Aegismesh remains the source of
 # truth; run URLs + status are appended to its research.md by the launching
 # agent after each run.
+#
+# Two jobs:
+#   selfcontained - SLO-canary arithmetic + LR2021 skeleton compile; needs
+#                   no secrets, runs on every push.
+#   full-sim      - checks out the PRIVATE repo sim/ and runs the seeded
+#                   DES/MC smoke profile; activates automatically once the
+#                   repo secret GH_PAT (fine-grained PAT with Contents:read
+#                   on drey123/Aegismesh) is configured by the owner.
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+env:
+  GH_PAT: ${{ secrets.GH_PAT }}
+
 jobs:
-  smoke:
+  selfcontained:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: SLO canary (closed-form anchors)
+        run: python3 slo_canary.py
+      - name: LR2021 Renode skeleton compile check
+        run: |
+          python3 -m py_compile lr2021_peripheral.py
+          echo "LR2021 skeleton compiles; register-accurate timing pending"
+
+  full-sim:
+    if: ${{ env.GH_PAT != '' }}
+    runs-on: ubuntu-latest
+    needs: selfcontained
     timeout-minutes: 15
     steps:
-      - name: Checkout private AegisMesh (sim only, shallow)
+      - name: Checkout private AegisMesh (sim only)
         uses: actions/checkout@v4
         with:
           repository: drey123/Aegismesh
           ref: main
           token: ${{ secrets.GH_PAT }}
           path: Aegismesh
-          # sparse: only the sim/ directory is needed by the gate
           sparse-checkout: sim
           sparse-checkout-cone: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install deps (numpy only, open source)
-        run: pip install numpy
-
-      - name: Copy fixtures and run smoke gate
-        shell: bash
+      - run: pip install numpy
+      - name: Run smoke gate against private sim/
         run: |
-          cp ci-smoke.sh lr2021_peripheral.py Aegismesh/sim/
+          cp ci-smoke.sh lr2021_peripheral.py slo_canary.py Aegismesh/sim/
           cd Aegismesh/sim
           sh ci-smoke.sh
-
-      - name: Renode presence check (skeleton gate)
-        shell: bash
-        run: |
-          # Renode itself is installed for future peripheral-accurate runs;
-          # the LR2021 skeleton is syntax-checked here, timing closure is
-          # carried until the register-accurate model lands (research.md
-          # ITER-4, bottleneck #5).
-          python3 -m py_compile Aegismesh/sim/lr2021_peripheral.py
-          echo "LR2021 skeleton compiles; Renode timing closure pending"
-
       - name: Upload smoke results
         uses: actions/upload-artifact@v4
         with:
