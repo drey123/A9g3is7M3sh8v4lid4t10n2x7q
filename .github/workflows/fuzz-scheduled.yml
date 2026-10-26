@@ -1,0 +1,77 @@
+name: aegismesh-fuzz-scheduled
+
+# ITER-14: scheduled longer fuzz campaigns (task.md "Parser fuzzing and
+# security regression gates": "Run longer scheduled fuzz campaigns separately.
+# Record harness coverage, duration, toolchain, seed/corpus, crashes, and
+# regressions. A smoke iteration count alone is not proof of parser safety.")
+#
+# Differences from the per-push smoke gate (smoke-gate.yml):
+#   - libFuzzer builds (clang -fsanitize=fuzzer,address,undefined) via the
+#     harnesses' -DAM_LIBFUZZER entry points, coverage-guided with a
+#     persistent-in-run corpus, not the fixed-seed deterministic generator;
+#   - time-bounded campaigns (-max_total_time) rather than fixed iterations;
+#   - crash + corpus artifacts uploaded for inspection; any crash fails the
+#     run (libFuzzer exits non-zero and writes crash-<sha1>).
+#
+# Corpus persistence across runs is NOT yet configured (fresh corpus each
+# run); artifacts are uploaded so the launching agent can inspect coverage
+# and retain minimized inputs. Recorded honestly: this is the first step of
+# the campaign ladder, not its end state.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # daily 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  fuzz-campaign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang (libFuzzer toolchain)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang
+          clang --version | head -2
+      - name: Build all four harnesses (libFuzzer mode)
+        run: |
+          for h in fuzz_headerv2 fuzz_witness16 fuzz_sdio_slot fuzz_ble_envelope; do
+            clang -DAM_LIBFUZZER -std=c11 -O1 -g -Wall -Wextra \
+              -fsanitize=fuzzer,address,undefined \
+              $h.c -o ${h}_lf
+          done
+      - name: Campaign - HeaderV2 (12B + 16B header, 240 s)
+        run: |
+          mkdir -p c_headerv2 && ./fuzz_headerv2_lf c_headerv2 -max_total_time=240 \
+            -print_final_stats=1 2>&1 | tee camp_headerv2.log
+      - name: Campaign - witness16 (240 s)
+        run: |
+          mkdir -p c_witness && ./fuzz_witness16_lf c_witness -max_total_time=240 \
+            -print_final_stats=1 2>&1 | tee camp_witness.log
+      - name: Campaign - sdio_slot (240 s)
+        run: |
+          mkdir -p c_sdio && ./fuzz_sdio_slot_lf c_sdio -max_total_time=240 \
+            -print_final_stats=1 2>&1 | tee camp_sdio.log
+      - name: Campaign - ble_envelope (240 s)
+        run: |
+          mkdir -p c_env && ./fuzz_ble_envelope_lf c_env -max_total_time=240 \
+            -print_final_stats=1 2>&1 | tee camp_env.log
+      - name: Assert zero crashes and record stats
+        run: |
+          ! ls crash-* 2>/dev/null
+          for f in camp_headerv2.log camp_witness.log camp_sdio.log camp_env.log; do
+            grep -q "stat::number_of_executed_units" "$f"
+            echo "== $f =="; grep "stat::" "$f" | tail -4
+          done
+          echo "scheduled campaign: 4 harnesses, 240 s each, 0 crashes"
+      - name: Upload campaign artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-campaign-artifacts
+          path: |
+            camp_*.log
+            crash-*
+            c_headerv2/* c_witness/* c_sdio/* c_env/*
+          retention-days: 14

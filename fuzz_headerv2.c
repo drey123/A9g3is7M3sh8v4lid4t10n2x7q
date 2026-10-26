@@ -33,6 +33,8 @@
 // Deterministic: xorshift64* PRNG, fixed seed 0x542.  100,000 iterations.
 // Build (CI): gcc -std=c11 -O1 -g -fsanitize=address,undefined
 //             -fno-sanitize-recover=all fuzz_headerv2.c -o fuzz_headerv2
+// libFuzzer-compatible: build with -DAM_LIBFUZZER -fsanitize=fuzzer
+// (ITER-14 scheduled campaigns; deterministic path unchanged).
 // License: MIT (AegisMesh validation fixture).
 // ============================================================================
 
@@ -109,6 +111,28 @@ static int fields_valid(const uint8_t *buf, uint32_t len)
     return 1;
 }
 
+#ifdef AM_LIBFUZZER
+/* libFuzzer entry point (ITER-14): same parser, same P1-P4 properties as the
+   deterministic path below.  The deterministic main() is unchanged, so the
+   per-push smoke-gate anchors (seed 0x542 counters) are unaffected. */
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+{
+    if (size > HDR_MAX) return 0;
+    int reason = -1;
+    const int acc = parse_header(data, (uint32_t)size, &reason);
+    if (acc) {
+        if (!fields_valid(data, (uint32_t)size)) abort();
+        if (reason != R_OK) abort();
+    } else if (reason < 0 || reason >= R_MAX) {
+        abort();
+    }
+    int reason2 = -1;
+    if (parse_header(data, (uint32_t)size, &reason2) != acc ||
+        reason2 != reason) abort();
+    return 0;
+}
+#else
 int main(void)
 {
     rng_state = FUZZ_SEED;
@@ -216,3 +240,4 @@ int main(void)
     printf("fuzz: ALL PROPERTIES PASS (P1-P4), coverage complete\n");
     return 0;
 }
+#endif /* AM_LIBFUZZER */
