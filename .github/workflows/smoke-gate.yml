@@ -75,6 +75,19 @@ jobs:
       - name: Run ITER-7 anchor selftest (island accrual custody model)
         run: dotnet run --project iter7.csproj --no-build
 
+  iter8-anchors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build ITER-8 arithmetic anchors
+        run: dotnet build iter8.csproj -v q
+      - name: Run ITER-8 anchor selftest (conditional-binary policy kernel)
+        run: dotnet run --project iter8.csproj --no-build
+
   gate:
     runs-on: ubuntu-latest
     needs: selfcontained

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Disposable CI fixture: ITER-8 arithmetic anchors (conditional-binary
+       spray policy kernels + egress-split load-balance bounds).
+       Pure closed-form math, no MC, no trace statistics. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>iter8anchors</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="iter8_anchors.cs" />
+  </ItemGroup>
+</Project>
