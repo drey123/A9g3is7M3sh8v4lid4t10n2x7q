@@ -136,9 +136,9 @@ jobs:
           echo "fuzz gate: 100000 iterations, 0 crashes, coverage complete"
 
   secret-canary:
-    # ITER-11 VAL: value-level read-back of the ITER11_VAL_CANARY repo
-    # secret written via the API (scripts/iter11_secret_val.py, PUT 201
-    # libsodium sealed box; ITER10 canary deleted, DELETE 204 - one-iteration
+    # ITER-12 VAL: value-level read-back of the ITER12_VAL_CANARY repo
+    # secret written via the API (scripts/iter12_secret_val.py, PUT 201
+    # libsodium sealed box; ITER11 canary deleted, DELETE 204 - one-iteration
     # TTL policy, VAL-007).  GitHub never returns secret values over the API,
     # so this runtime check is the value-level half of the write/read
     # validation.
@@ -147,12 +147,12 @@ jobs:
     steps:
       - id: check
         env:
-          CANARY: ${{ secrets.ITER11_VAL_CANARY != '' }}
+          CANARY: ${{ secrets.ITER12_VAL_CANARY != '' }}
         run: |
           if [ "$CANARY" = "true" ]; then
-            echo "ITER11_VAL_CANARY present and non-empty in Actions runtime"
+            echo "ITER12_VAL_CANARY present and non-empty in Actions runtime"
           else
-            echo "FAIL: ITER11_VAL_CANARY missing"; exit 1
+            echo "FAIL: ITER12_VAL_CANARY missing"; exit 1
           fi
 
   proverif-verify:
@@ -219,7 +219,44 @@ jobs:
               grep -qF "$line" ess_verdict.txt || { echo "STALE VERDICT: $line"; exit 1; }
             done
           done
-          echo "proverif-verify: 3 models, 16 verdict lines, all match committed anchors"
+          echo "proverif-verify: 3 models, 18 verdict lines, all match committed anchors"
+
+  pqc-kat:
+    # ITER-12 PQ-001: pinned ML-KEM-768 implementation gate.  Clones
+    # mlkem-native at the pinned tag, asserts the pinned commit SHA, builds
+    # the portable C90 core (the exact code path the Cortex-M33/STM32U5
+    # runs - no native backend exists for Armv8-M Mainline), and re-runs:
+    # deterministic NIST KATs (digest-pinned), functional/unit tests,
+    # official ACVP v1.1.0.43 vectors, and a valgrind secret-taint
+    # constant-time screen on the ML-KEM-768 unit test (sk + randomness
+    # marked secret upstream via MLK_CT_TESTING_SECRET).  Any build drift,
+    # vector failure, or secret-dependent branch/memory access fails CI.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Install valgrind + libc debug symbols
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq valgrind libc6-dbg
+      - name: Clone mlkem-native at pinned revision
+        run: |
+          git clone --depth 1 --branch v2.0.0 https://github.com/pq-code-package/mlkem-native.git /tmp/mln
+          cd /tmp/mln
+          echo "revision: $(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD)" = "d1b2fe782888bdb761a50336012923180be7f502" || { echo "PIN MISMATCH"; exit 1; }
+      - name: KAT + functional + unit (digest-pinned)
+        run: |
+          cd /tmp/mln
+          make -j"$(nproc)" run_kat run_func run_unit
+      - name: Official ACVP vectors (v1.1.0.43)
+        run: |
+          cd /tmp/mln
+          make run_acvp
+      - name: Constant-time screen (valgrind secret-taint, ML-KEM-768)
+        run: |
+          cd /tmp/mln
+          valgrind --error-exitcode=99 test/build/mlkem768/bin/test_unit768
+          echo "CT screen clean: no secret-dependent branches/memory accesses on the decaps path"
 
   gate:
     runs-on: ubuntu-latest
