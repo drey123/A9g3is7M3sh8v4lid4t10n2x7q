@@ -231,28 +231,28 @@ jobs:
           echo "aead-boundary gate: KATs exact, exhaustive sweeps clean, 100000 iterations, 0 crashes"
 
   secret-canary:
-    # ITER-16 VAL: value-level read-back of the ITER16_VAL_CANARY repo
-    # secret written via the API (scripts/iter16_secret_val.py, PUT 201
-    # libsodium sealed box; ITER14 canary deleted, DELETE 204 - one-iteration
-    # TTL policy, VAL-007, eighth consecutive rotation).  GitHub never
+    # ITER-19 VAL: value-level read-back of the ITER19_VAL_CANARY repo
+    # secret written via the API (scripts/iter19_secret_val.py, PUT 201
+    # libsodium sealed box; ITER16 canary deleted, DELETE 204 - one-iteration
+    # TTL policy, VAL-007, ninth consecutive rotation).  GitHub never
     # returns secret values over the API, so this runtime check is the
     # value-level half of the write/read validation.  Coupling note (recorded
     # ITER-14): this reference must rotate with the secret in the same
     # iteration - the ITER-14 push run 40337698971 failed this job exactly
-    # once when the rotation preceded the reference update; the ITER-16
-    # rotation applied the zero-failed-run order (write NEW first, update
-    # this reference second, delete OLD third - each step CI-safe).
+    # once when the rotation preceded the reference update; the ITER-16 and
+    # ITER-19 rotations applied the zero-failed-run order (write NEW first,
+    # update this reference second, delete OLD third - each step CI-safe).
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - id: check
         env:
-          CANARY: ${{ secrets.ITER16_VAL_CANARY != '' }}
+          CANARY: ${{ secrets.ITER19_VAL_CANARY != '' }}
         run: |
           if [ "$CANARY" = "true" ]; then
-            echo "ITER16_VAL_CANARY present and non-empty in Actions runtime"
+            echo "ITER19_VAL_CANARY present and non-empty in Actions runtime"
           else
-            echo "FAIL: ITER16_VAL_CANARY missing"; exit 1
+            echo "FAIL: ITER19_VAL_CANARY missing"; exit 1
           fi
 
   proverif-verify:
