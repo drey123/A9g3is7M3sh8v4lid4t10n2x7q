@@ -82,7 +82,7 @@ namespace AegisMesh.Validation
             AssertNear(2.0 * 20.0, 40.0, "alpha=0.5 p50 delay = 40 s");
             AssertNear(1.0 * 20.0, 20.0, "alpha=1.0 p50 delay = 20 s");
             Assert(100.0 < 20.0 * 60.0,
-                   "worst-case detection (100 s) < one estimator window");
+                   "worst-case detection (100 s) < 1200 s pin (60 steps = one hour of 20 s steps)");
 
             // ---- 5) Alloy custody model verdicts (SAT4J, recorded):
             //         4 checks hold, 4 non-vacuity runs reachable.

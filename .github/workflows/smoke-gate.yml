@@ -136,23 +136,90 @@ jobs:
           echo "fuzz gate: 100000 iterations, 0 crashes, coverage complete"
 
   secret-canary:
-    # ITER-10 VAL: value-level read-back of the ITER10_VAL_CANARY repo
-    # secret written via the API (scripts/iter10_secret_val.py, PUT 201;
-    # ITER9 canary deleted, DELETE 204 - one-iteration TTL policy).  GitHub
-    # never returns secret values over the API, so this runtime check is
-    # the value-level half of the write/read validation.
+    # ITER-11 VAL: value-level read-back of the ITER11_VAL_CANARY repo
+    # secret written via the API (scripts/iter11_secret_val.py, PUT 201
+    # libsodium sealed box; ITER10 canary deleted, DELETE 204 - one-iteration
+    # TTL policy, VAL-007).  GitHub never returns secret values over the API,
+    # so this runtime check is the value-level half of the write/read
+    # validation.
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - id: check
         env:
-          CANARY: ${{ secrets.ITER10_VAL_CANARY != '' }}
+          CANARY: ${{ secrets.ITER11_VAL_CANARY != '' }}
         run: |
           if [ "$CANARY" = "true" ]; then
-            echo "ITER10_VAL_CANARY present and non-empty in Actions runtime"
+            echo "ITER11_VAL_CANARY present and non-empty in Actions runtime"
           else
-            echo "FAIL: ITER10_VAL_CANARY missing"; exit 1
+            echo "FAIL: ITER11_VAL_CANARY missing"; exit 1
           fi
+
+  proverif-verify:
+    # ITER-11 FV: re-run the ProVerif formal models (ESS outsider/insider +
+    # FW-003/004 SOS-ACK) from the private repo's sim/proverif/ in CI, with
+    # the open-source toolchain (ProVerif 2.05, Alpine static musl build,
+    # no root).  Verdict lines must match the committed ess_verdict.txt -
+    # stale-model / stale-verdict detection per task.md ("CI must detect
+    # stale model inputs or missing proof/test runs").
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout private AegisMesh (sim/proverif only)
+        uses: actions/checkout@v4
+        with:
+          repository: drey123/Aegismesh
+          ref: main
+          token: ${{ secrets.GH_PAT }}
+          path: Aegismesh
+          sparse-checkout: sim/proverif
+      - name: Install ProVerif 2.05 (open-source static musl build)
+        run: |
+          mkdir -p /tmp/pv && cd /tmp/pv
+          curl -sL -o proverif.apk https://dl-cdn.alpinelinux.org/alpine/edge/testing/x86_64/proverif-2.05-r1.apk
+          curl -sL -o musl.apk https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/musl-1.2.6-r6.apk
+          mkdir -p rootfs
+          tar -xzf proverif.apk -C rootfs
+          tar --warning=no-unknown-keyword -xzf musl.apk -C rootfs
+          chmod +x rootfs/usr/bin/proverif rootfs/lib/ld-musl-x86_64.so.1
+          echo "PV=/tmp/pv/rootfs/lib/ld-musl-x86_64.so.1 --library-path /tmp/pv/rootfs/lib /tmp/pv/rootfs/usr/bin/proverif" >> "$GITHUB_ENV"
+      - name: Run ESS outsider model
+        run: |
+          cd Aegismesh/sim/proverif
+          $PV -in pitype ess_outsider.pv > outsider.log
+          grep -q "^RESULT not attacker_p2(m1\[\]) is true\.$" outsider.log
+          grep -q "^RESULT not attacker_p2(destId\[\]) is true\.$" outsider.log
+          grep -q "^RESULT not attacker_p2(m2\[\]) is true\.$" outsider.log
+          test "$(grep -c '^RESULT' outsider.log)" -eq 7
+          test "$(grep '^RESULT' outsider.log | grep -c 'is true\.$')" -eq 7
+      - name: Run ESS insider model (epoch-key compromise)
+        run: |
+          cd Aegismesh/sim/proverif
+          $PV -in pitype ess_insider.pv > insider.log
+          grep -q "^RESULT not attacker_p2(m1\[\]) is true\.$" insider.log
+          grep -q "^RESULT not attacker_p2(destId\[\]) is false\.$" insider.log
+          grep -q "^RESULT not attacker_p2(m2\[\]) is true\.$" insider.log
+          test "$(grep -c '^RESULT' insider.log)" -eq 9
+          test "$(grep '^RESULT' insider.log | grep -c 'is true\.$')" -eq 4
+          test "$(grep '^RESULT' insider.log | grep -c 'is false\.$')" -eq 3
+      - name: Run SOS-ACK model (FW-003/FW-004)
+        run: |
+          cd Aegismesh/sim/proverif
+          $PV -in pitype sosack.pv > sosack.log
+          grep -q "^RESULT inj-event(srcAccept(m_4,s_4,r)) ==> inj-event(repAcked(m_4,s_4,r)) is true\.$" sosack.log
+          grep -q "event(sosSent(m_4,s_4)) && event(repAcked(m_4,s_4,ra_2)) && event(repAcked(m_4,s_4,rb_2)) is true\.$" sosack.log
+          test "$(grep -c '^RESULT' sosack.log)" -eq 2
+      - name: Assert all verdict lines match committed ess_verdict.txt
+        run: |
+          cd Aegismesh/sim/proverif
+          # every RESULT line in a fresh run must appear in the committed verdict file
+          for f in outsider insider sosack; do
+            grep "^RESULT" $f.log | while read -r line; do
+              grep -qF "$line" ess_verdict.txt || { echo "STALE VERDICT: $line"; exit 1; }
+            done
+          done
+          echo "proverif-verify: 3 models, 16 verdict lines, all match committed anchors"
 
   gate:
     runs-on: ubuntu-latest
