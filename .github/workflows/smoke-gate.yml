@@ -10,6 +10,8 @@ name: aegismesh-smoke-gate
 # Two stages:
 #   selfcontained - SLO-canary arithmetic + LR2021 skeleton compile; needs
 #                   no secrets, runs on every push.
+#   (ITER-13: fuzz gate is now a 4-harness family - headerv2, witness,
+#    sdio-slot, ble-envelope - one job per harness, 100k iterations each.)
 #   full-sim      - checks out the PRIVATE repo sim/ and runs the seeded
 #                   DES/MC smoke profile; activates automatically once the
 #                   repo secret GH_PAT (fine-grained PAT with Contents:read
@@ -135,24 +137,89 @@ jobs:
           grep -q "ALL PROPERTIES PASS (P1-P4), coverage complete" fuzz_smoke.log
           echo "fuzz gate: 100000 iterations, 0 crashes, coverage complete"
 
+  fuzz-witness:
+    # ITER-13 harness family (task.md "Parser fuzzing and security
+    # regression gates"): 16-byte witness receipt (MAC-006: 8 B msg-id hash
+    # + 4 B hop MAC + 4 B CRC-32 LE over [0:12]).  Deterministic seed 0x542,
+    # 100,000 iterations, properties P1-P4 under ASan/UBSan.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build witness-receipt fuzz harness (ASan + UBSan)
+        run: |
+          gcc -std=c11 -O1 -g -Wall -Wextra -fsanitize=address,undefined \
+              -fno-sanitize-recover=all fuzz_witness16.c -o fuzz_witness16
+      - name: Run 100k-iteration smoke fuzz
+        run: ./fuzz_witness16 | tee fuzz_witness.log
+      - name: Assert anchors (deterministic seed 0x542)
+        run: |
+          grep -q "iters=100000" fuzz_witness.log
+          grep -q "ALL PROPERTIES PASS (P1-P4), coverage complete" fuzz_witness.log
+          echo "witness-receipt fuzz gate: 100000 iterations, 0 crashes, coverage complete"
+
+  fuzz-sdio:
+    # ITER-13 harness family: 512-byte SDIO slot framing (FW-002:
+    # [len:2 | flags:1 | ring_seq:1 | payload:<=504 | CRC32:4], EOT +
+    # crypto-required flags, reserved bits zero).  Seed 0x542, 100,000
+    # iterations, P1-P4 under ASan/UBSan.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build SDIO-slot fuzz harness (ASan + UBSan)
+        run: |
+          gcc -std=c11 -O1 -g -Wall -Wextra -fsanitize=address,undefined \
+              -fno-sanitize-recover=all fuzz_sdio_slot.c -o fuzz_sdio_slot
+      - name: Run 100k-iteration smoke fuzz
+        run: ./fuzz_sdio_slot | tee fuzz_sdio.log
+      - name: Assert anchors (deterministic seed 0x542)
+        run: |
+          grep -q "iters=100000" fuzz_sdio.log
+          grep -q "ALL PROPERTIES PASS (P1-P4), coverage complete" fuzz_sdio.log
+          echo "sdio-slot fuzz gate: 100000 iterations, 0 crashes, coverage complete"
+
+  fuzz-envelope:
+    # ITER-13 harness family: BLE/Nostr transport envelope, BitChat-anchored
+    # v1 frame (whitepaper v2.0 section 4.1/4.2; byte widths pinned from
+    # BinaryProtocol.swift) + AegisMesh overlays: 16 KiB envelope cap (O1,
+    # task.md quota baseline) and TTL in [1,7] (O2, PR #998 lesson).
+    # v2 source-route frames out of scope (stated scoping).  Seed 0x542,
+    # 100,000 iterations, P1-P5 under ASan/UBSan.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build BLE-envelope fuzz harness (ASan + UBSan)
+        run: |
+          gcc -std=c11 -O1 -g -Wall -Wextra -fsanitize=address,undefined \
+              -fno-sanitize-recover=all fuzz_ble_envelope.c -o fuzz_ble_envelope
+      - name: Run 100k-iteration smoke fuzz
+        run: ./fuzz_ble_envelope | tee fuzz_envelope.log
+      - name: Assert anchors (deterministic seed 0x542)
+        run: |
+          grep -q "iters=100000" fuzz_envelope.log
+          grep -q "ALL PROPERTIES PASS (P1-P5), coverage complete" fuzz_envelope.log
+          echo "ble-envelope fuzz gate: 100000 iterations, 0 crashes, coverage complete"
+
   secret-canary:
-    # ITER-12 VAL: value-level read-back of the ITER12_VAL_CANARY repo
-    # secret written via the API (scripts/iter12_secret_val.py, PUT 201
-    # libsodium sealed box; ITER11 canary deleted, DELETE 204 - one-iteration
-    # TTL policy, VAL-007).  GitHub never returns secret values over the API,
-    # so this runtime check is the value-level half of the write/read
-    # validation.
+    # ITER-13 VAL: value-level read-back of the ITER13_VAL_CANARY repo
+    # secret written via the API (scripts/iter13_secret_val.py, PUT 201
+    # libsodium sealed box; ITER12 canary deleted, DELETE 204 - one-iteration
+    # TTL policy, VAL-007, sixth consecutive rotation).  GitHub never returns
+    # secret values over the API, so this runtime check is the value-level
+    # half of the write/read validation.
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - id: check
         env:
-          CANARY: ${{ secrets.ITER12_VAL_CANARY != '' }}
+          CANARY: ${{ secrets.ITER13_VAL_CANARY != '' }}
         run: |
           if [ "$CANARY" = "true" ]; then
-            echo "ITER12_VAL_CANARY present and non-empty in Actions runtime"
+            echo "ITER13_VAL_CANARY present and non-empty in Actions runtime"
           else
-            echo "FAIL: ITER12_VAL_CANARY missing"; exit 1
+            echo "FAIL: ITER13_VAL_CANARY missing"; exit 1
           fi
 
   proverif-verify:
