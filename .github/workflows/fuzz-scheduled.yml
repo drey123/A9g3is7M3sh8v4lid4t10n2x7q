@@ -34,9 +34,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq clang
           clang --version | head -2
-      - name: Build all four harnesses (libFuzzer mode)
+      - name: Build all five harnesses (libFuzzer mode)
         run: |
-          for h in fuzz_headerv2 fuzz_witness16 fuzz_sdio_slot fuzz_ble_envelope; do
+          for h in fuzz_headerv2 fuzz_witness16 fuzz_sdio_slot fuzz_ble_envelope fuzz_aead_boundary; do
             clang -DAM_LIBFUZZER -std=c11 -O1 -g -Wall -Wextra \
               -fsanitize=fuzzer,address,undefined \
               $h.c -o ${h}_lf
@@ -57,14 +57,18 @@ jobs:
         run: |
           mkdir -p c_env && ./fuzz_ble_envelope_lf c_env -max_total_time=240 \
             -print_final_stats=1 2>&1 | tee camp_env.log
+      - name: Campaign - aead_boundary (240 s)
+        run: |
+          mkdir -p c_aead && ./fuzz_aead_boundary_lf c_aead -max_total_time=240 \
+            -print_final_stats=1 2>&1 | tee camp_aead.log
       - name: Assert zero crashes and record stats
         run: |
           ! ls crash-* 2>/dev/null
-          for f in camp_headerv2.log camp_witness.log camp_sdio.log camp_env.log; do
+          for f in camp_headerv2.log camp_witness.log camp_sdio.log camp_env.log camp_aead.log; do
             grep -q "stat::number_of_executed_units" "$f"
             echo "== $f =="; grep "stat::" "$f" | tail -4
           done
-          echo "scheduled campaign: 4 harnesses, 240 s each, 0 crashes"
+          echo "scheduled campaign: 5 harnesses, 240 s each, 0 crashes"
       - name: Upload campaign artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -73,5 +77,5 @@ jobs:
           path: |
             camp_*.log
             crash-*
-            c_headerv2/* c_witness/* c_sdio/* c_env/*
+            c_headerv2/* c_witness/* c_sdio/* c_env/* c_aead/*
           retention-days: 14

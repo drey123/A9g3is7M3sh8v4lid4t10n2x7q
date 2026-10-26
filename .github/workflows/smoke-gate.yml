@@ -202,6 +202,34 @@ jobs:
           grep -q "ALL PROPERTIES PASS (P1-P5), coverage complete" fuzz_envelope.log
           echo "ble-envelope fuzz gate: 100000 iterations, 0 crashes, coverage complete"
 
+  fuzz-aead:
+    # ITER-14 AEAD-boundary reference contract (task.md parser-fuzzing
+    # mandate's boundary half + ITER-13 new bottleneck #2): pins the SEC-001
+    # AEAD call-site doctrine - D1 all 16 header bytes are AAD (exhaustive
+    # bit sweep), D2 96-bit nonce = (epoch|direction) prefix || monotone
+    # counter, uniqueness at seal, D3 unseal stateless (DTN out-of-order
+    # tolerance; replay is custody-layer), D4 enumerated reasons - against a
+    # self-contained KAT-anchored RFC 8439 ChaCha20-Poly1305 reference.
+    # Properties K0 (RFC 8439 2.3.2/2.5.2/2.8.2 KATs, byte-exact), A1-A4
+    # (exhaustive boundary sweeps + nonce discipline + stateless decrypt),
+    # A5 100,000-iteration mutation stream under ASan/UBSan, seed 0x542.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build AEAD-boundary harness (ASan + UBSan)
+        run: |
+          gcc -std=c11 -O1 -g -Wall -Wextra -fsanitize=address,undefined \
+              -fno-sanitize-recover=all fuzz_aead_boundary.c -o fuzz_aead_boundary
+      - name: Run KATs + exhaustive sweeps + 100k-iteration fuzz stream
+        run: ./fuzz_aead_boundary | tee fuzz_aead.log
+      - name: Assert anchors (deterministic seed 0x542)
+        run: |
+          grep -q "iters=100000 accepted=100000 rejects=100000" fuzz_aead.log
+          grep -q "ALL PROPERTIES PASS (K0,A1-A5), coverage complete" fuzz_aead.log
+          grep -q "RFC 8439 KATs pass" fuzz_aead.log
+          echo "aead-boundary gate: KATs exact, exhaustive sweeps clean, 100000 iterations, 0 crashes"
+
   secret-canary:
     # ITER-14 VAL: value-level read-back of the ITER14_VAL_CANARY repo
     # secret written via the API (scripts/iter14_secret_val.py, PUT 201
