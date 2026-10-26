@@ -310,6 +310,26 @@ jobs:
           grep -q "^RESULT inj-event(srcAccept(m_4,s_4,r)) ==> inj-event(repAcked(m_4,s_4,r)) is true\.$" sosack.log
           grep -q "event(sosSent(m_4,s_4)) && event(repAcked(m_4,s_4,ra_2)) && event(repAcked(m_4,s_4,rb_2)) is true\.$" sosack.log
           test "$(grep -c '^RESULT' sosack.log)" -eq 2
+      - name: Run capsule-opacity model (SEC-004/RT-013, ITER-18 FV-002 extension)
+        run: |
+          cd Aegismesh/sim/proverif
+          $PV -in pitype capsule_opacity.pv > capsule.log
+          grep -q "^RESULT not attacker_p2(m1\[\]) is true\.$" capsule.log
+          grep -q "^RESULT not attacker_p2(destId\[\]) is true\.$" capsule.log
+          grep -q "^RESULT not attacker_p2(m2\[\]) is true\.$" capsule.log
+          grep -q "^RESULT event(bridgedOut(x_6)) ==> event(bridgedIn(x_6)) is true\.$" capsule.log
+          test "$(grep -c '^RESULT' capsule.log)" -eq 8
+          test "$(grep '^RESULT' capsule.log | grep -c 'is true\.$')" -eq 8
+      - name: Run group-epoch PCS model (SEC-005, ITER-18 FV-002 extension)
+        run: |
+          cd Aegismesh/sim/proverif
+          $PV -in pitype group_epoch.pv > group.log
+          grep -q "^RESULT not attacker(m2\[\]) is true\.$" group.log
+          grep -q "^RESULT not attacker(destIdG\[\]) is true\.$" group.log
+          grep -q "^RESULT inj-event(acceptedE2G(x_1)) ==> inj-event(sentE2G(x_1)) is true\.$" group.log
+          grep -q "^RESULT inj-event(certAccepted(x_1)) ==> inj-event(certSigned(x_1)) is true\.$" group.log
+          test "$(grep -c '^RESULT' group.log)" -eq 4
+          test "$(grep '^RESULT' group.log | grep -c 'is true\.$')" -eq 4
       - name: Assert all verdict lines match committed ess_verdict.txt
         run: |
           cd Aegismesh/sim/proverif
@@ -319,7 +339,13 @@ jobs:
               grep -qF "$line" ess_verdict.txt || { echo "STALE VERDICT: $line"; exit 1; }
             done
           done
-          echo "proverif-verify: 3 models, 18 verdict lines, all match committed anchors"
+          # ITER-18 FV-002 extension: the two new models anchor against fv2_extension_verdict.txt
+          for f in capsule group; do
+            grep "^RESULT" $f.log | while read -r line; do
+              grep -qF "$line" fv2_extension_verdict.txt || { echo "STALE VERDICT: $line"; exit 1; }
+            done
+          done
+          echo "proverif-verify: 5 models, 30 verdict lines, all match committed anchors"
 
   pqc-kat:
     # ITER-12 PQ-001: pinned ML-KEM-768 implementation gate.  Clones
