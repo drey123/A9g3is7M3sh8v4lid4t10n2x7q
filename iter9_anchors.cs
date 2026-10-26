@@ -77,7 +77,7 @@ namespace AegisMesh.Validation
             // ---- 4) suppression attack leverage (RF suppression is the
             //         ONLY route to the expensive direction): 1420.1 B/s =
             //         23.668% of aggregate, watched by the HW-010 guard
-            AssertNear(1420.1 / aggCap, 0.23668, "suppression leverage "
+            AssertNear(1420.1 / aggCap, 0.23668, "suppression leverage " +
                        "(1420.1 B/s = 23.668% of aggregate)", 1e-4);
             Assert(1420.1 < ceilingMean - hybridM5 + 1.0,
                    "leverage bounded by the ceiling-hybrid demand gap");
