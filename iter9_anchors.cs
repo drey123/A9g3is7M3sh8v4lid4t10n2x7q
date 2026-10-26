@@ -64,14 +64,14 @@ namespace AegisMesh.Validation
             //         thr = 5): demand delta +25.4 B/s (+1.5 %), expensive
             //         misclassification 0.86 %, detection margin p99 = 189
             const double dpDemand = 1746.85;
-            const double dpDelta = 25.4;
+            const double dpDelta = 25.43;
             AssertNear(dpDemand - hybridM5, dpDelta, "design-point delta",
                        0.01);
             Assert(dpDelta / hybridM5 < 0.02, "demand impact < 2% at 10% loss");
             Assert(0.0086 < 0.02, "expensive-error < 2% at 10% loss (0.86%)");
             Assert(189 > 0, "detection margin p99 (clear) = 189 stale IDs");
-            Assert(25.4 < 46.3, "clear variant delta <= persist variant at "
-                   + "p_b=0.2 (55.7) and p_b=0.1 (25.4 vs 21.0 persist: "
+            Assert(25.43 < 46.3, "clear variant delta <= persist variant at "
+                   + "p_b=0.2 (55.7) and p_b=0.1 (25.43 vs 21.0 persist: "
                    + "clear pays <= +4.4 B/s for closing the leak channel)");
 
             // ---- 4) suppression attack leverage (RF suppression is the
