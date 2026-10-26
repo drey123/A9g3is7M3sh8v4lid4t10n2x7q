@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Disposable CI fixture: ITER-10 arithmetic anchors (estimator-driven
+       paired spray DES, EDA watchdog CUSUM, Alloy custody verdicts). Pure
+       pinned constants and closed-form arithmetic; no MC, no traces. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>iter10anchors</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="iter10_anchors.cs" />
+  </ItemGroup>
+</Project>

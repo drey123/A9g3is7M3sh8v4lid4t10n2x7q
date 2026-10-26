@@ -101,6 +101,19 @@ jobs:
       - name: Run ITER-9 anchor selftest (m-hat estimator + quotas)
         run: dotnet run --project iter9.csproj --no-build
 
+  iter10-anchors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build ITER-10 arithmetic anchors
+        run: dotnet build iter10.csproj -v q
+      - name: Run ITER-10 anchor selftest (spray-est + EDA + Alloy)
+        run: dotnet run --project iter10.csproj --no-build
+
   fuzz-smoke:
     # Owner mandate: parser-fuzzing gate, >= 100,000 iterations per push
     # (task.md "Parser fuzzing and security regression gates").  Harness:
@@ -123,8 +136,9 @@ jobs:
           echo "fuzz gate: 100000 iterations, 0 crashes, coverage complete"
 
   secret-canary:
-    # ITER-9 VAL: value-level read-back of the ITER9_VAL_CANARY repo secret
-    # written via the API (scripts/iter9_secret_val.py, PUT 201).  GitHub
+    # ITER-10 VAL: value-level read-back of the ITER10_VAL_CANARY repo
+    # secret written via the API (scripts/iter10_secret_val.py, PUT 201;
+    # ITER9 canary deleted, DELETE 204 - one-iteration TTL policy).  GitHub
     # never returns secret values over the API, so this runtime check is
     # the value-level half of the write/read validation.
     runs-on: ubuntu-latest
@@ -132,12 +146,12 @@ jobs:
     steps:
       - id: check
         env:
-          CANARY: ${{ secrets.ITER9_VAL_CANARY != '' }}
+          CANARY: ${{ secrets.ITER10_VAL_CANARY != '' }}
         run: |
           if [ "$CANARY" = "true" ]; then
-            echo "ITER9_VAL_CANARY present and non-empty in Actions runtime"
+            echo "ITER10_VAL_CANARY present and non-empty in Actions runtime"
           else
-            echo "FAIL: ITER9_VAL_CANARY missing"; exit 1
+            echo "FAIL: ITER10_VAL_CANARY missing"; exit 1
           fi
 
   gate:
