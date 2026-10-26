@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Disposable CI fixture: ITER-9 arithmetic anchors (m-hat estimator,
+       adversarial bounds, per-peer sync quotas). Pure pinned constants and
+       closed-form arithmetic; no MC, no trace statistics. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>iter9anchors</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="iter9_anchors.cs" />
+  </ItemGroup>
+</Project>
