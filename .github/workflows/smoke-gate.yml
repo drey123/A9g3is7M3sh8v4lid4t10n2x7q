@@ -231,7 +231,7 @@ jobs:
           echo "aead-boundary gate: KATs exact, exhaustive sweeps clean, 100000 iterations, 0 crashes"
 
   secret-canary:
-    # ITER-42 VAL: value-level read-back of the ITER43_VAL_CANARY repo
+    # ITER-42 VAL: value-level read-back of the ITER44_VAL_CANARY repo
     # secret written via the API (scripts/iter22_secret_val.py, PUT 201
     # libsodium sealed box; ITER19 canary deleted after this run is green,
     # DELETE 204 - one-iteration TTL policy, VAL-007, tenth consecutive
@@ -248,12 +248,12 @@ jobs:
     steps:
       - id: check
         env:
-          CANARY: ${{ secrets.ITER43_VAL_CANARY != '' }}
+          CANARY: ${{ secrets.ITER44_VAL_CANARY != '' }}
         run: |
           if [ "$CANARY" = "true" ]; then
-            echo "ITER43_VAL_CANARY present and non-empty in Actions runtime"
+            echo "ITER44_VAL_CANARY present and non-empty in Actions runtime"
           else
-            echo "FAIL: ITER43_VAL_CANARY missing"; exit 1
+            echo "FAIL: ITER44_VAL_CANARY missing"; exit 1
           fi
 
   proverif-verify:
